@@ -1,8 +1,5 @@
-﻿using System;
-using System.Data;
-using System.Reflection;
+﻿using System.Data;
 
-#if !NETSTANDARD1_3
 namespace Dapper
 {
     /// <summary>
@@ -11,7 +8,7 @@ namespace Dapper
     internal sealed class TableValuedParameter : SqlMapper.ICustomQueryParameter
     {
         private readonly DataTable table;
-        private readonly string typeName;
+        private readonly string? typeName;
 
         /// <summary>
         /// Create a new instance of <see cref="TableValuedParameter"/>.
@@ -24,21 +21,10 @@ namespace Dapper
         /// </summary>
         /// <param name="table">The <see cref="DataTable"/> to create this parameter for.</param>
         /// <param name="typeName">The name of the type this parameter is for.</param>
-        public TableValuedParameter(DataTable table, string typeName)
+        public TableValuedParameter(DataTable table, string? typeName)
         {
             this.table = table;
             this.typeName = typeName;
-        }
-
-        private static readonly Action<System.Data.SqlClient.SqlParameter, string> setTypeName;
-        static TableValuedParameter()
-        {
-            var prop = typeof(System.Data.SqlClient.SqlParameter).GetProperty("TypeName", BindingFlags.Instance | BindingFlags.Public);
-            if (prop != null && prop.PropertyType == typeof(string) && prop.CanWrite)
-            {
-                setTypeName = (Action<System.Data.SqlClient.SqlParameter, string>)
-                    Delegate.CreateDelegate(typeof(Action<System.Data.SqlClient.SqlParameter, string>), prop.GetSetMethod());
-            }
         }
 
         void SqlMapper.ICustomQueryParameter.AddParameter(IDbCommand command, string name)
@@ -49,21 +35,16 @@ namespace Dapper
             command.Parameters.Add(param);
         }
 
-        internal static void Set(IDbDataParameter parameter, DataTable table, string typeName)
+        internal static void Set(IDbDataParameter parameter, DataTable? table, string? typeName)
         {
 #pragma warning disable 0618
             parameter.Value = SqlMapper.SanitizeParameterValue(table);
 #pragma warning restore 0618
-            if (string.IsNullOrEmpty(typeName) && table != null)
+            if (string.IsNullOrEmpty(typeName) && table is not null)
             {
                 typeName = table.GetTypeName();
             }
-            if (!string.IsNullOrEmpty(typeName) && (parameter is System.Data.SqlClient.SqlParameter sqlParam))
-            {
-                setTypeName?.Invoke(sqlParam, typeName);
-                sqlParam.SqlDbType = SqlDbType.Structured;
-            }
+            if (!string.IsNullOrEmpty(typeName)) StructuredHelper.ConfigureTVP(parameter, typeName);
         }
     }
 }
-#endif

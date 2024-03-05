@@ -5,7 +5,6 @@ namespace Dapper
 {
     public static partial class SqlMapper
     {
-#if !NETSTANDARD1_3 && !NETSTANDARD2_0
         /// <summary>
         /// A type handler for data-types that are supported by the underlying provider, but which need
         /// a well-known UdtTypeName to be specified
@@ -23,7 +22,7 @@ namespace Dapper
                 this.udtTypeName = udtTypeName;
             }
 
-            object ITypeHandler.Parse(Type destinationType, object value)
+            object? ITypeHandler.Parse(Type destinationType, object value)
             {
                 return value is DBNull ? null : value;
             }
@@ -33,13 +32,8 @@ namespace Dapper
 #pragma warning disable 0618
                 parameter.Value = SanitizeParameterValue(value);
 #pragma warning restore 0618
-                if (parameter is System.Data.SqlClient.SqlParameter && !(value is DBNull))
-                {
-                    ((System.Data.SqlClient.SqlParameter)parameter).SqlDbType = SqlDbType.Udt;
-                    ((System.Data.SqlClient.SqlParameter)parameter).UdtTypeName = udtTypeName;
-                }
+                if(!(value is DBNull)) StructuredHelper.ConfigureUDT(parameter, udtTypeName);
             }
         }
-#endif
     }
 }
